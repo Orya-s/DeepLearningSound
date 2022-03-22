@@ -1,5 +1,5 @@
 import torch
-from cnn_model_definition import Convolutional_Speaker_Identification
+from cnn_model_definition import Convolutional_Neural_Network
 import numpy as np
 import os
 from tqdm import tqdm
@@ -51,7 +51,7 @@ training_results_path = 'results\\'
 print('Start training:')
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = Convolutional_Speaker_Identification().to(device)
+model = Convolutional_Neural_Network().to(device)
 
 # setting model's parameters
 learning_rate = model.get_learning_rate()
