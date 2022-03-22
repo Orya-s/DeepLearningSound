@@ -45,7 +45,7 @@ def random_file_data(path):
     return file_mat
 
 
-data_path = 'pickles\\'
+data_path = 'data\\'
 training_results_path = 'results\\'
 
 print('Start training:')
@@ -80,12 +80,12 @@ for e in range(epoch):
     model.train()
     train_loss, val_loss = 0, 0
 
-    train_files = random_file_data(data_path + 'train_files_npy/')
+    train_files = random_file_data(data_path)  # + 'train_files_npy/')
     block_num = 3
     count_train = 0
     for g in range(int(np.ceil(len(train_files) / block_num))):
 
-        x_train, y_train = create_tensors(data_path + 'train_files_npy/', train_files, g, block_num)
+        x_train, y_train = create_tensors(data_path, train_files, g, block_num)
 
         epoch_size = len(x_train)
         train_epoch_idx = np.random.choice(len(y_train), epoch_size, replace=False)
