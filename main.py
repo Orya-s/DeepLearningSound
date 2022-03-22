@@ -1,16 +1,25 @@
-# This is a sample Python script.
+import numpy as np
+import pandas as pd
+import pickle
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+objects = []
+with (open("data.pkl", "rb")) as openfile:
+    while True:
+        try:
+            objects.append(pickle.load(openfile))
+        except EOFError:
+            break
 
+print(len(objects))
+print(type(objects))
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+inner_list = objects[0]  # list - one argument
+print(type(inner_list))
+print(len(inner_list))  # 100 sets of 3 arg each
 
+one_rec = inner_list[0]  # set of 3
+#print(one_rec)
+print(len(one_rec))
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+for x in one_rec:
+    print(x)

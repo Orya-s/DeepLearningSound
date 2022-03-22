@@ -6,6 +6,7 @@ from tqdm import tqdm
 import pandas as pd
 from datetime import datetime
 import matplotlib
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
@@ -18,7 +19,7 @@ def top_k_accuracy(k, proba_pred_y, mini_y_test):
     return np.mean(final_pred)
 
 
-def import_and_concat_data(data_path , file_list):
+def import_and_concat_data(data_path, file_list):
     x, y = np.array([]), np.array([])
     for file_name in tqdm(file_list):
         temp_array = np.load(data_path + file_name)
@@ -28,16 +29,18 @@ def import_and_concat_data(data_path , file_list):
             y = temp_array if y.size == 0 else np.concatenate([y, temp_array], axis=0)
     return x, y
 
-def create_tensors(data_path , data_file_list , i,block_num):
-    file_list = list(data_file_list[i*block_num: (i+1)*block_num].flatten())
-    x, y = import_and_concat_data(data_path , file_list)
+
+def create_tensors(data_path, data_file_list, i, block_num):
+    file_list = list(data_file_list[i * block_num: (i + 1) * block_num].flatten())
+    x, y = import_and_concat_data(data_path, file_list)
     y = pd.Series(y).str.split('id1', expand=True).iloc[:, -1].values.astype(int) - 1
     x = np.expand_dims(x, axis=1)
     return torch.from_numpy(x).float(), torch.from_numpy(y)
 
+
 def random_file_data(path):
     data_file_list = os.listdir(path)
-    file_mat = np.sort(data_file_list).reshape(2,int(len(data_file_list)/2)).T
+    file_mat = np.sort(data_file_list).reshape(2, int(len(data_file_list) / 2)).T
     np.random.shuffle(file_mat)
     return file_mat
 
@@ -65,7 +68,8 @@ if not os.path.isdir(dir_path):
     os.mkdir(dir_path)
 
 file = open(dir_path + '/reuslts.txt', 'w')
-file_txt = ['Date and time :  ' + now_time,'Learning Rate : ' + str(learning_rate), 'Batch Size : ' + str(batch_size), 'Epoch Number : ' + str(epoch)]
+file_txt = ['Date and time :  ' + now_time, 'Learning Rate : ' + str(learning_rate), 'Batch Size : ' + str(batch_size),
+            'Epoch Number : ' + str(epoch)]
 for s in file_txt:
     file.write('\r----------------------------\r\r')
     file.write(s)
@@ -79,9 +83,9 @@ for e in range(epoch):
     train_files = random_file_data(data_path + 'train_files_npy/')
     block_num = 3
     count_train = 0
-    for g in range(int(np.ceil(len(train_files)/block_num))):
+    for g in range(int(np.ceil(len(train_files) / block_num))):
 
-        x_train, y_train = create_tensors(data_path + 'train_files_npy/' , train_files , g,block_num)
+        x_train, y_train = create_tensors(data_path + 'train_files_npy/', train_files, g, block_num)
 
         epoch_size = len(x_train)
         train_epoch_idx = np.random.choice(len(y_train), epoch_size, replace=False)
@@ -98,9 +102,9 @@ for e in range(epoch):
             train_loss += loss.item()
             loss.backward()
             optimizer.step()
-            count_train+=1
+            count_train += 1
 
-    train_loss = np.round(train_loss/count_train, 4)
+    train_loss = np.round(train_loss / count_train, 4)
 
     # checking the model's performances per epoch
 
@@ -108,31 +112,31 @@ for e in range(epoch):
         model.eval()
 
         val_files = random_file_data(data_path + 'val_files_npy/')
-        count_val=0
-        for g in range(int(np.ceil(len(val_files)/block_num))):
-            x_val, y_val = create_tensors(data_path + 'val_files_npy/' , val_files , g, block_num)
+        count_val = 0
+        for g in range(int(np.ceil(len(val_files) / block_num))):
+            x_val, y_val = create_tensors(data_path + 'val_files_npy/', val_files, g, block_num)
             val_epoch_idx = np.random.choice(len(y_val), len(y_val), replace=False)
             for h in range(int(len(y_val) / batch_size) - 1):
                 val_batch_loc = val_epoch_idx[(h * batch_size): ((h + 1) * batch_size)]
                 mini_x_val, mini_y_val = x_val[val_batch_loc], y_val[val_batch_loc]
                 y_pred_val = model(mini_x_val.to(device))
                 val_loss += criterion(y_pred_val, mini_y_val.long().to(device)).item()
-                count_val+=1
-        val_loss = np.round(val_loss/count_val, 4)
+                count_val += 1
+        val_loss = np.round(val_loss / count_val, 4)
 
         # calculating predictions on the test set
         final_accuracy = np.array([0, 0, 0], dtype=float)
         test_files = random_file_data(data_path + 'test_files_npy/')
         count_test = 0
-        for g in range(int(len(test_files)/block_num) + 1):
-            x_test, y_test = create_tensors(data_path + 'test_files_npy/' , test_files , g, block_num)
+        for g in range(int(len(test_files) / block_num) + 1):
+            x_test, y_test = create_tensors(data_path + 'test_files_npy/', test_files, g, block_num)
             test_epoch_idx = np.random.choice(len(y_test), len(y_test), replace=False)
 
-            for l in range(int(np.ceil(len(y_test)/batch_size))):
+            for l in range(int(np.ceil(len(y_test) / batch_size))):
                 test_batch_loc = test_epoch_idx[(l * batch_size):((l + 1) * batch_size)]
                 mini_x_test, mini_y_test = x_test[test_batch_loc], y_test[test_batch_loc]
                 proba_pred_y = model(mini_x_test.to(device))
-                count_test +=1
+                count_test += 1
                 accuracy_list = []
 
                 for k in [1, 5, 10]:
@@ -141,13 +145,13 @@ for e in range(epoch):
 
         final_accuracy /= count_test
 
-    #if 0 == (e % 5):
-        #torch.save(model, dir_path + "/" + model.to_string() + str(e + 1) + ".pth")
+    # if 0 == (e % 5):
+    # torch.save(model, dir_path + "/" + model.to_string() + str(e + 1) + ".pth")
     torch.save(model, dir_path + "/" + model.to_string() + str(e + 1) + ".pth")
     new_final_accuracy = [round(x * 100, 3) for x in list(final_accuracy)]
 
     results_df.loc[len(results_df)] = [train_loss, val_loss] + new_final_accuracy
-    print('Epoch: ',e ,' -', dict(results_df.iloc[-1]))
+    print('Epoch: ', e, ' -', dict(results_df.iloc[-1]))
 
     epoch_report = "Epoch : " + str(e + 1) + " | Train_Loss: " + str(train_loss) + ' , Val_Loss: ' + str(val_loss)
     file.write('\r----------------------------\r\r')

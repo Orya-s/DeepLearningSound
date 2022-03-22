@@ -16,7 +16,6 @@ class Convolutional_Speaker_Identification(nn.Module):
         return (stride_size * (new_shape - 1) + kernel_size - old_shape) / 2
 
     def __init__(self):
-
         super().__init__()
 
         self.conv_2d_1 = nn.Conv2d(1, 96, kernel_size=(7, 7), stride=(2, 2), padding=1)
@@ -44,10 +43,9 @@ class Convolutional_Speaker_Identification(nn.Module):
         self.dense_1 = nn.Linear(4096, 1024)
         self.drop_2 = nn.Dropout(p=DROP_OUT)
 
-        self.dense_2 = nn.Linear(1024, c.NUM_OF_SPEAKERS)
+        self.dense_2 = nn.Linear(1024, c.NUM_OF_SPEAKERS)  # NUM_OF_AGE_GROUPS / GENDERS
 
     def forward(self, X):
-
         x = nn.ReLU()(self.conv_2d_1(X))
         x = self.bn_1(x)
         x = self.max_pool_2d_1(x)
@@ -75,7 +73,7 @@ class Convolutional_Speaker_Identification(nn.Module):
         x = self.drop_2(x)
 
         x = self.dense_2(x)
-        y = nn.LogSoftmax(dim=1)(x)   # consider using Log-Softmax
+        y = nn.LogSoftmax(dim=1)(x)  # consider using Log-Softmax
 
         return y
 
@@ -89,5 +87,4 @@ class Convolutional_Speaker_Identification(nn.Module):
         return 16
 
     def to_string(self):
-        return "Convolutional_Speaker_Identification_Log_Softmax_Model-epoch_"
-
+        return "CNN_Model-epoch_"  # "Convolutional_Speaker_Identification_Log_Softmax_Model-epoch_"
