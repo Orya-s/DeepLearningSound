@@ -3,22 +3,20 @@ The code is based on : https://github.com/a-nagrani/VGGVox/issues/1
 ******************************************************************"""
 
 from torch import nn
-# import constants as c
 import torch
 
 DROP_OUT = 0.5
-DIMENSION = 512 * 300
 
 
 class Convolutional_Neural_Network(nn.Module):
 
-    def cal_paddind_shape(self, new_shape, old_shape, kernel_size, stride_size):
-        return (stride_size * (new_shape - 1) + kernel_size - old_shape) / 2
+    # def cal_paddind_shape(self, new_shape, old_shape, kernel_size, stride_size):
+    #     return (stride_size * (new_shape - 1) + kernel_size - old_shape) / 2
 
     def __init__(self):
         super().__init__()
 
-        self.conv_2d_1 = nn.Conv2d(1, 96, kernel_size=(3,3), padding=1)
+        self.conv_2d_1 = nn.Conv2d(1, 96, kernel_size=(3, 3), padding=1)
         self.bn_1 = nn.BatchNorm2d(96)
         self.max_pool_2d_1 = nn.MaxPool2d(kernel_size=(3, 3))
 
@@ -78,7 +76,7 @@ class Convolutional_Neural_Network(nn.Module):
         return y
 
     def get_epochs(self):
-        return 10
+        return 30  # 15
 
     def get_learning_rate(self):
         return 0.0001
@@ -86,7 +84,7 @@ class Convolutional_Neural_Network(nn.Module):
     def get_batch_size(self):
         return 50
         # 16 - with 10 epochs gave 0.9369 final loss
-        # 50 - with 10 epochs gave 0.2096, after normalization 0.0626
+        # 50 - with 10 epochs gave 0.2096, after normalization 0.0626 , 0.0822
         # 25 - with 10 epochs after normalization 0.1984
 
     def to_string(self):

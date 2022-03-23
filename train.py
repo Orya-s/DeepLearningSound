@@ -8,7 +8,6 @@ import pandas as pd
 from datetime import datetime
 import matplotlib
 
-
 print('Start training:')
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -21,6 +20,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 criterion = torch.nn.CrossEntropyLoss()
 epoch, batch_size = model.get_epochs(), model.get_batch_size()
+
 
 # # preparing txt report file
 # training_results_path = 'results\\'
@@ -38,32 +38,26 @@ epoch, batch_size = model.get_epochs(), model.get_batch_size()
 #     file.write(s)
 
 
-def top_k_accuracy(k, proba_pred_y, mini_y_test):
-    top_k_pred = proba_pred_y.argsort(axis=1)[:, -k:]
-    final_pred = [False] * len(mini_y_test)
-    for j in range(len(mini_y_test)):
-        final_pred[j] = True if sum(top_k_pred[j] == mini_y_test[j]) > 0 else False
-    return np.mean(final_pred)
-
-
 for e in range(epoch):
+    print("\nepoch - ", e)
 
     model.train()
-    train_loss = 0
+    train_loss, val_loss, test_loss = 0, 0, 0
     count_train = 0
+    train_size = 0
+    test_size = 0
 
-    i = 0
-    for tensor, age in data.train_loader:
+    for tensor, label in data.train_loader:
 
         epoch_size = len(tensor)
-        train_epoch_idx = np.random.choice(len(age), epoch_size, replace=False)
+        train_epoch_idx = np.random.choice(len(label), epoch_size, replace=False)
         np.random.shuffle(train_epoch_idx)
         batch_num = int(np.ceil(epoch_size / batch_size))
 
         for b in tqdm(range(batch_num)):
             optimizer.zero_grad()
             batch_loc = train_epoch_idx[(b * batch_size):((b + 1) * batch_size)]
-            x_batch, y_batch = tensor[batch_loc], age[batch_loc]
+            x_batch, y_batch = tensor[batch_loc], label[batch_loc]
 
             y_pred = model(x_batch.to(device))
             loss = criterion(y_pred, y_batch.long().to(device))
@@ -71,40 +65,61 @@ for e in range(epoch):
             loss.backward()
             optimizer.step()
             count_train += 1
-
-            # i += 1
-            # if i % 5 == 0:
-            #     print("\n", loss)
+            train_size += len(label)
 
     train_loss = np.round(train_loss / count_train, 4)
-    print("\nloss - ", train_loss)
+    print("\ntrain_size - ", train_size)
+    print("\ntrain loss - ", train_loss)
 
     # checking the model's performances per epoch
 
-    with torch.no_grad():
+    with torch.no_grad():  # only after validation ?
         model.eval()
 
+        # val = data.val_loader
+        # count_val = 0
+        # for tensor, label in data.val_loader:
+        #     val_epoch_idx = np.random.choice(len(label), len(label), replace=False)
+        #     for h in range(int(np.ceil(len(label) / batch_size))):
+        #         val_batch_loc = val_epoch_idx[(h * batch_size): ((h + 1) * batch_size)]
+        #         mini_x_val, mini_y_val = tensor[val_batch_loc], label[val_batch_loc]
+        #         y_pred_val = model(mini_x_val.to(device))
+        #         val_loss += criterion(y_pred_val, mini_y_val.long().to(device)).item()
+        #         count_val += 1
+        # val_loss = np.round(val_loss / count_val, 4)
+        # print("\nval loss - ", val_loss)
+
         # calculating predictions on the test set
-        final_accuracy = np.array([0, 0, 0], dtype=float)
+
+        final_accuracy = 0
         count_test = 0
-        for tensor, age in data.test_loader:
-            test_epoch_idx = np.random.choice(len(age), len(age), replace=False)
+        accuracy_pred = 0
+        for tensor, label in data.test_loader:
+            #test_epoch_idx = np.random.choice(len(label), len(label), replace=False)
+           # for l in range(int(np.ceil(len(label) / batch_size))):
+                #test_batch_loc = test_epoch_idx[(l * batch_size):((l + 1) * batch_size)]
+                #mini_x_test, mini_y_test = tensor[test_batch_loc], label[test_batch_loc]
 
-            for l in range(int(np.ceil(len(age) / batch_size))):
-                test_batch_loc = test_epoch_idx[(l * batch_size):((l + 1) * batch_size)]
-                mini_x_test, mini_y_test = tensor[test_batch_loc], age[test_batch_loc]
-                proba_pred_y = model(mini_x_test.to(device))
-                count_test += 1
-                accuracy_list = []
+            proba_pred_y = model(tensor.to(device))
 
-                for k in [1, 5, 10]:
-                    accuracy_list += [top_k_accuracy(k, proba_pred_y, mini_y_test)]
-                final_accuracy += np.array(accuracy_list)
+            t_loss = criterion(proba_pred_y, label.long().to(device))
+            test_loss += t_loss.item()
+            count_test += 1
 
-        final_accuracy /= count_test
+            #print("label - ", label)
+            output = torch.exp(proba_pred_y)
+            output = torch.argmax(output, dim=1) + 1
+            #print("output - ", output)
+            accuracy_pred += (output == label).float().sum()
+            #print("accuracy_pred - ", accuracy_pred)
+            test_size += len(label)
 
-    #torch.save(model, dir_path + "/" + model.to_string() + str(e + 1) + ".pth")
-    new_final_accuracy = [round(x * 100, 3) for x in list(final_accuracy)]
-    print("new_final_accuracy - ", new_final_accuracy)
+        print("\ntest size - ", test_size, " , num of correct predictions - ", accuracy_pred)
 
+        test_loss = np.round(test_loss / count_test, 4)
+        accuracy_pred /= test_size
+        print("test loss - ", test_loss, " , test accuracy - ", accuracy_pred)
+        #print("\ncount train - ", count_train, " , count test - ", count_test)
+
+    # torch.save(model, dir_path + "/" + model.to_string() + str(e + 1) + ".pth")
 
