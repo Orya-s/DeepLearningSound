@@ -76,10 +76,10 @@ class Convolutional_Neural_Network(nn.Module):
         return y
 
     def get_epochs(self):
-        return 30  # 15
+        return 15  # 20
 
     def get_learning_rate(self):
-        return 0.0001
+        return 0.0001  # 0.0001
 
     def get_batch_size(self):
         return 50

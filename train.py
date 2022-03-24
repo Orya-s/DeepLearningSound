@@ -43,9 +43,9 @@ for e in range(epoch):
 
     model.train()
     train_loss, val_loss, test_loss = 0, 0, 0
+    train_accuracy = 0
     count_train = 0
-    train_size = 0
-    test_size = 0
+    train_size, test_size = 0, 0
 
     for tensor, label in data.train_loader:
 
@@ -67,9 +67,17 @@ for e in range(epoch):
             count_train += 1
             train_size += len(label)
 
-    train_loss = np.round(train_loss / count_train, 4)
+            # train acc
+            train_output = torch.exp(y_pred)
+            train_output = torch.argmax(train_output, dim=1) + 1
+            # print("train_output - ", train_output)
+            train_accuracy += (train_output == label).float().sum()
+
     print("\ntrain_size - ", train_size)
-    print("\ntrain loss - ", train_loss)
+
+    train_loss = np.round(train_loss / count_train, 4)
+    train_accuracy /= train_size
+    print("train loss - ", train_loss, " , train accuracy - ", train_accuracy)
 
     # checking the model's performances per epoch
 
@@ -119,6 +127,7 @@ for e in range(epoch):
         test_loss = np.round(test_loss / count_test, 4)
         accuracy_pred /= test_size
         print("test loss - ", test_loss, " , test accuracy - ", accuracy_pred)
+        
         #print("\ncount train - ", count_train, " , count test - ", count_test)
 
     # torch.save(model, dir_path + "/" + model.to_string() + str(e + 1) + ".pth")
