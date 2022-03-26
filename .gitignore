@@ -3,3 +3,4 @@
 .idea
 venv
 draft.py
+__pycache__
