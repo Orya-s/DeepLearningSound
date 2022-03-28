@@ -1,51 +1,53 @@
+import time
+
 import torch
+from sklearn.utils import class_weight
+
 from cnn_model_definition import Convolutional_Neural_Network
 from preprocessing import prepareData
-import numpy as np
+
 import os
 from tqdm import tqdm
 import pandas as pd
 from datetime import datetime
 import matplotlib
+import numpy as np
 
+from sklearn.metrics import confusion_matrix
+import seaborn as sn
+import pandas as pd
+import matplotlib.pyplot as plt
+
+start = time.time()
+print('Start')
 print('Start training:')
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = Convolutional_Neural_Network().to(device)
 data = prepareData()
 
+sum_op = len(data.genders)
+
 # setting model's parameters
 learning_rate = model.get_learning_rate()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-criterion = torch.nn.CrossEntropyLoss()
+class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(data.y), y=data.y)
+class_weights = torch.tensor(class_weights, dtype=torch.float)
+
+criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
+
+# criterion = torch.nn.CrossEntropyLoss()
 epoch, batch_size = model.get_epochs(), model.get_batch_size()
-
-
-# # preparing txt report file
-# training_results_path = 'results\\'
-# results_df = pd.DataFrame([], columns=['train_loss', 'val_loss', 'top_1_test_acc', 'top_5_test_acc', 'top_10_test_acc'])
-# now_time = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-# dir_path = training_results_path + now_time
-# if not os.path.isdir(dir_path):
-#     os.mkdir(dir_path)
-#
-# file = open(dir_path + '/reuslts.txt', 'w')
-# file_txt = ['Date and time :  ' + now_time, 'Learning Rate : ' + str(learning_rate), 'Batch Size : ' + str(batch_size),
-#             'Epoch Number : ' + str(epoch)]
-# for s in file_txt:
-#     file.write('\r----------------------------\r\r')
-#     file.write(s)
-
 
 for e in range(epoch):
     print("\nepoch - ", e)
 
     model.train()
     train_loss, val_loss, test_loss = 0, 0, 0
-    train_accuracy = 0
     count_train = 0
-    train_size, test_size = 0, 0
+    train_size = 0
+    test_size = 0
 
     for tensor, label in data.train_loader:
 
@@ -67,22 +69,47 @@ for e in range(epoch):
             count_train += 1
             train_size += len(label)
 
-            # train acc
-            train_output = torch.exp(y_pred)
-            train_output = torch.argmax(train_output, dim=1) + 1
-            # print("train_output - ", train_output)
-            train_accuracy += (train_output == label).float().sum()
-
-    print("\ntrain_size - ", train_size)
-
     train_loss = np.round(train_loss / count_train, 4)
-    train_accuracy /= train_size
-    print("train loss - ", train_loss, " , train accuracy - ", train_accuracy)
+    print("\ntrain_size - ", train_size)
+    print("\ntrain loss - ", train_loss)
 
     # checking the model's performances per epoch
 
-    with torch.no_grad():  # only after validation ?
-        model.eval()
+    with torch.no_grad():
+        n_correct = 0
+        n_samples = 0
+        n_class_correct = [0 for i in range(sum_op)]
+        n_class_samples = [0 for i in range(sum_op)]
+        for embedding, labels in data.test_loader:
+            embedding = embedding.to(device)
+
+            labels = labels.type(torch.LongTensor)
+            labels = labels.to(device)
+            outputs = model(embedding)
+
+            # euler FIX
+            # max returns (value ,index)
+            _, predicted = torch.max(outputs, 1)
+            n_samples += labels.size(0)
+            n_correct += (predicted == labels).sum().item()
+
+            for i in range(len(labels)):
+
+                _label = labels[i]
+                pred = predicted[i]
+                if _label == pred:
+                    n_class_correct[_label] += 1
+                n_class_samples[_label] += 1
+
+        acc = 100.0 * n_correct / n_samples
+        print(f'Accuracy of the network: {acc} %')
+
+        for i in range(sum_op):
+            if n_class_correct[i] == 0:
+                acc = 0
+            else:
+                acc = 100.0 * n_class_correct[i] / n_class_samples[i]
+            print(f'Accuracy of {i + 1}: {acc} %')
 
         # val = data.val_loader
         # count_val = 0
@@ -97,38 +124,31 @@ for e in range(epoch):
         # val_loss = np.round(val_loss / count_val, 4)
         # print("\nval loss - ", val_loss)
 
-        # calculating predictions on the test set
+y_pred = []
+y_true = []
 
-        final_accuracy = 0
-        count_test = 0
-        accuracy_pred = 0
-        for tensor, label in data.test_loader:
-            #test_epoch_idx = np.random.choice(len(label), len(label), replace=False)
-           # for l in range(int(np.ceil(len(label) / batch_size))):
-                #test_batch_loc = test_epoch_idx[(l * batch_size):((l + 1) * batch_size)]
-                #mini_x_test, mini_y_test = tensor[test_batch_loc], label[test_batch_loc]
+# iterate over test data
+for inputs, labels in data.test_loader:
+    output = model(inputs)  # Feed Network
 
-            proba_pred_y = model(tensor.to(device))
+    output = (torch.max(torch.exp(output), 1)[1]).data.cpu().numpy()
+    y_pred.extend(output)  # Save Prediction
 
-            t_loss = criterion(proba_pred_y, label.long().to(device))
-            test_loss += t_loss.item()
-            count_test += 1
+    labels = labels.data.cpu().numpy()
+    y_true.extend(labels)  # Save Truth
 
-            #print("label - ", label)
-            output = torch.exp(proba_pred_y)
-            output = torch.argmax(output, dim=1) + 1
-            #print("output - ", output)
-            accuracy_pred += (output == label).float().sum()
-            #print("accuracy_pred - ", accuracy_pred)
-            test_size += len(label)
+# constant for classes
+classes = ('Male', 'Female')
 
-        print("\ntest size - ", test_size, " , num of correct predictions - ", accuracy_pred)
+# Build confusion matrix
+cf_matrix = confusion_matrix(y_true, y_pred)
+df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * 10, index=[i for i in classes], columns=[i for i in classes])
+plt.figure(figsize=(12, 7))
+sn.heatmap(df_cm, annot=True)
+plt.savefig('confusion_matrix' + model.to_string() + str(e + 1) + ".png")
 
-        test_loss = np.round(test_loss / count_test, 4)
-        accuracy_pred /= test_size
-        print("test loss - ", test_loss, " , test accuracy - ", accuracy_pred)
-        
-        #print("\ncount train - ", count_train, " , count test - ", count_test)
+print("End")
+end = time.time()
+print("Total time = ", end - start)
 
-    # torch.save(model, dir_path + "/" + model.to_string() + str(e + 1) + ".pth")
-
+torch.save(model, 'models\\' + "/" + model.to_string() + str(e + 1) + ".pth")

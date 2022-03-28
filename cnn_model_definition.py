@@ -41,7 +41,7 @@ class Convolutional_Neural_Network(nn.Module):
         self.dense_1 = nn.Linear(4096, 1024)
         self.drop_2 = nn.Dropout(p=DROP_OUT)
 
-        self.dense_2 = nn.Linear(1024, 9)  # NUM_OF_AGE_GROUPS / GENDERS
+        self.dense_2 = nn.Linear(1024, 2)  # NUM_OF_AGE_GROUPS / GENDERS
 
     def forward(self, X):
         x = nn.ReLU()(self.conv_2d_1(X))
@@ -76,10 +76,10 @@ class Convolutional_Neural_Network(nn.Module):
         return y
 
     def get_epochs(self):
-        return 15  # 20
+        return 30  # 15
 
     def get_learning_rate(self):
-        return 0.0001  # 0.0001
+        return 0.0001
 
     def get_batch_size(self):
         return 50
