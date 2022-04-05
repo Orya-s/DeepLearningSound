@@ -29,36 +29,58 @@ class prepareData:
             k += 1
         d = X
 
+        # path = f'/content/drive/MyDrive/data_pkl/test/all-voice-common.pkl'
+        # with open("all-voice-common.pkl", 'wb') as f:
+        #     pickle.dump(X, f)
+
         X_data = []
         y1_data = []  # gender
         Y_data = []  # age
-        self.ages = {"teens": 1, "twenties": 2, "thirties": 3, "fourties": 4, "fifties": 5, "sixties": 6,
-                     "seventies": 7, "eighties": 8, "nineties": 9}
+        self.ages = {"teens": 0, "twenties": 1, "thirties": 2, "fourties": 3}
+        self.ignore_age = {"fifties": 4, "sixties": 5, "seventies": 6, "eighties": 7, "nineties": 8}
         self.genders = {"male": 0, "female": 1}
 
         gender_sum = [0, 0]
-        age_sum = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+        age_sum = [0, 0, 0, 0]
         g, a, t = 0, 0, 0
+        female_sum, male_sum = 0, 0
         for i in X:  # iterating over the lines of the data
             for j in i:  # iterating over the set in each line
                 if j in self.genders:
                     g = j
-                elif j in self.ages:
+                elif j in self.ages or j in self.ignore_age:
                     a = j
                 else:  # tensor
                     j = torch.nn.functional.normalize(j, p=10.0, dim=1)
                     t = j
 
             l = 1
+
+            if g == "male":
+                male_sum += 1
+
+            if g == "female":
+                female_sum += 1
+
+            if male_sum > 14700 and g == "male":
+                l = 0
+
+            # if female_sum > 1500 and g == "female":
+            #     l = 0
+
+            if a in self.ignore_age:
+                l = 0
+
             for i in range(l):
                 y1_data.append(self.genders[g])
                 gender_sum[self.genders[g]] += 1
                 Y_data.append(self.ages[a])
-                age_sum[self.ages[a] - 1] += 1
+                age_sum[self.ages[a]] += 1
                 X_data.append(t)
 
         print("gender_sum is ", gender_sum)
         print("age_sum is ", age_sum)
+        print(sum(gender_sum))
         print("\n")
 
         self.y = np.array(y1_data)

@@ -123,6 +123,31 @@ for e in range(epoch):
         #         count_val += 1
         # val_loss = np.round(val_loss / count_val, 4)
         # print("\nval loss - ", val_loss)
+        if e % 10 == 0:
+            torch.save(model, 'models\\' + "/" + "gender_" + model.to_string() + str(e + 1) + "_Weights.pth")
+
+            y_pred = []
+            y_true = []
+
+            # iterate over test data
+            for inputs, labels in data.test_loader:
+                output = model(inputs)  # Feed Network
+
+                output = (torch.max(torch.exp(output), 1)[1]).data.cpu().numpy()
+                y_pred.extend(output)  # Save Prediction
+
+                labels = labels.data.cpu().numpy()
+                y_true.extend(labels)  # Save Truth
+
+            # constant for classes
+            classes = data.genders.keys()
+
+            # Build confusion matrix
+            cf_matrix = confusion_matrix(y_true, y_pred)
+            df_cm = pd.DataFrame(cf_matrix, index=[i for i in classes], columns=[i for i in classes])
+            plt.figure(figsize=(12, 7))
+            sn.heatmap(df_cm, annot=True)
+            plt.savefig('confusion_matrix' + "_gender_" + model.to_string() + str(e + 1) + "_Weights.png")
 
 y_pred = []
 y_true = []
@@ -138,17 +163,16 @@ for inputs, labels in data.test_loader:
     y_true.extend(labels)  # Save Truth
 
 # constant for classes
-classes = ('Male', 'Female')
+classes = data.genders.keys()
 
 # Build confusion matrix
 cf_matrix = confusion_matrix(y_true, y_pred)
-df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * 10, index=[i for i in classes], columns=[i for i in classes])
+df_cm = pd.DataFrame(cf_matrix, index=[i for i in classes], columns=[i for i in classes])
 plt.figure(figsize=(12, 7))
 sn.heatmap(df_cm, annot=True)
-plt.savefig('confusion_matrix' + model.to_string() + str(e + 1) + ".png")
-
+plt.savefig('confusion_matrix' + "_gender_" + model.to_string() + str(e + 1) + "_Weights.png")
 print("End")
 end = time.time()
 print("Total time = ", end - start)
 
-torch.save(model, 'models\\' + "/" + model.to_string() + str(e + 1) + ".pth")
+torch.save(model, 'models\\' + "/" + "gender_" + model.to_string() + str(e + 1) + "_Weights.pth")
