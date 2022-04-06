@@ -26,7 +26,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = Convolutional_Neural_Network().to(device)
 data = prepareData()
 
-sum_op = len(data.genders)
+sum_op = len(data.genders)  # change between models
 
 # setting model's parameters
 learning_rate = model.get_learning_rate()
@@ -39,6 +39,9 @@ criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
 
 # criterion = torch.nn.CrossEntropyLoss()
 epoch, batch_size = model.get_epochs(), model.get_batch_size()
+
+# to plot each the loss of each epoch
+results_df = pd.DataFrame([], columns=['train_loss', 'val_loss', 'test_loss'])
 
 for e in range(epoch):
     print("\nepoch - ", e)
@@ -74,18 +77,40 @@ for e in range(epoch):
     print("\ntrain loss - ", train_loss)
 
     # checking the model's performances per epoch
-
     with torch.no_grad():
+
+        # Validation
+        val = data.val_loader
+        count_val = 0
+        for tensor, label in data.val_loader:
+            val_epoch_idx = np.random.choice(len(label), len(label), replace=False)
+            for h in range(int(np.ceil(len(label) / batch_size))):
+                val_batch_loc = val_epoch_idx[(h * batch_size): ((h + 1) * batch_size)]
+                mini_x_val, mini_y_val = tensor[val_batch_loc], label[val_batch_loc]
+                y_pred_val = model(mini_x_val.to(device))
+                val_loss += criterion(y_pred_val, mini_y_val.long().to(device)).item()
+                count_val += 1
+        val_loss = np.round(val_loss / count_val, 4)
+        print("\nval loss - ", val_loss)
+
+        # Testing
+
+        count_test = 0
         n_correct = 0
         n_samples = 0
         n_class_correct = [0 for i in range(sum_op)]
         n_class_samples = [0 for i in range(sum_op)]
+
         for embedding, labels in data.test_loader:
             embedding = embedding.to(device)
 
             labels = labels.type(torch.LongTensor)
             labels = labels.to(device)
             outputs = model(embedding)
+
+            # test loss
+            test_loss += criterion(outputs, labels.long()).item()
+            count_test += 1
 
             # euler FIX
             # max returns (value ,index)
@@ -94,15 +119,19 @@ for e in range(epoch):
             n_correct += (predicted == labels).sum().item()
 
             for i in range(len(labels)):
-
                 _label = labels[i]
                 pred = predicted[i]
                 if _label == pred:
                     n_class_correct[_label] += 1
                 n_class_samples[_label] += 1
 
+        test_loss = np.round(test_loss / count_test, 4)
+        print("\ntest loss - ", test_loss)
+
+        results_df.loc[len(results_df)] = [train_loss, val_loss, test_loss]
+
         acc = 100.0 * n_correct / n_samples
-        print(f'Accuracy of the network: {acc} %')
+        print(f'\nAccuracy of the network: {acc} %')
 
         for i in range(sum_op):
             if n_class_correct[i] == 0:
@@ -111,20 +140,9 @@ for e in range(epoch):
                 acc = 100.0 * n_class_correct[i] / n_class_samples[i]
             print(f'Accuracy of {i + 1}: {acc} %')
 
-        # val = data.val_loader
-        # count_val = 0
-        # for tensor, label in data.val_loader:
-        #     val_epoch_idx = np.random.choice(len(label), len(label), replace=False)
-        #     for h in range(int(np.ceil(len(label) / batch_size))):
-        #         val_batch_loc = val_epoch_idx[(h * batch_size): ((h + 1) * batch_size)]
-        #         mini_x_val, mini_y_val = tensor[val_batch_loc], label[val_batch_loc]
-        #         y_pred_val = model(mini_x_val.to(device))
-        #         val_loss += criterion(y_pred_val, mini_y_val.long().to(device)).item()
-        #         count_val += 1
-        # val_loss = np.round(val_loss / count_val, 4)
-        # print("\nval loss - ", val_loss)
-        if e % 10 == 0:
-            torch.save(model, 'models\\' + "/" + "gender_" + model.to_string() + str(e + 1) + "_Weights.pth")
+        # saving model and creating confusion matrix
+        if e % 1 == 0:  # 5
+            torch.save(model, 'models\\6.4\\roi\\' + "/" + "gender_" + model.to_string() + str(e + 1) + "_Weights.pth")
 
             y_pred = []
             y_true = []
@@ -147,8 +165,10 @@ for e in range(epoch):
             df_cm = pd.DataFrame(cf_matrix, index=[i for i in classes], columns=[i for i in classes])
             plt.figure(figsize=(12, 7))
             sn.heatmap(df_cm, annot=True)
-            plt.savefig('confusion_matrix' + "_gender_" + model.to_string() + str(e + 1) + "_Weights.png")
+            plt.savefig('models\\6.4\\roi\\' + "/" + 'confusion_matrix' + "_gender_" + model.to_string() + str(e + 1) + "_Weights.png")
 
+
+# confusion matrix
 y_pred = []
 y_true = []
 
@@ -170,9 +190,22 @@ cf_matrix = confusion_matrix(y_true, y_pred)
 df_cm = pd.DataFrame(cf_matrix, index=[i for i in classes], columns=[i for i in classes])
 plt.figure(figsize=(12, 7))
 sn.heatmap(df_cm, annot=True)
-plt.savefig('confusion_matrix' + "_gender_" + model.to_string() + str(e + 1) + "_Weights.png")
+plt.savefig('models\\6.4\\roi\\' + "/" + 'confusion_matrix' + "_gender_" + model.to_string() + str(e + 1) + "_Weights.png")
 print("End")
 end = time.time()
 print("Total time = ", end - start)
 
-torch.save(model, 'models\\' + "/" + "gender_" + model.to_string() + str(e + 1) + "_Weights.pth")
+torch.save(model, 'models\\6.4\\roi\\' + "/" + "gender_" + model.to_string() + str(e + 1) + "_Weights.pth")
+
+
+
+plt.figure(figsize=(10, 10))
+plt.plot(results_df['train_loss'], color='gold', label='train')
+plt.plot(results_df['val_loss'], color='purple', label='val')
+plt.plot(results_df['test_loss'], color='blue', label='test')
+
+plt.ylabel('Loss', fontsize=25)
+plt.xlabel('Epoch', fontsize=25)
+plt.legend()
+plt.savefig('models\\6.4\\roi\\' +'/final_loss_plot.jpeg')
+print(results_df)

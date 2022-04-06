@@ -34,8 +34,8 @@ class prepareData:
         #     pickle.dump(X, f)
 
         X_data = []
-        y1_data = []  # gender
-        Y_data = []  # age
+        y_gender = []  # gender
+        y_age = []  # age
         self.ages = {"teens": 0, "twenties": 1, "thirties": 2, "fourties": 3}
         self.ignore_age = {"fifties": 4, "sixties": 5, "seventies": 6, "eighties": 7, "nineties": 8}
         self.genders = {"male": 0, "female": 1}
@@ -62,7 +62,7 @@ class prepareData:
             if g == "female":
                 female_sum += 1
 
-            if male_sum > 14700 and g == "male":
+            if male_sum > 10000 and g == "male":    # 14700
                 l = 0
 
             # if female_sum > 1500 and g == "female":
@@ -71,10 +71,10 @@ class prepareData:
             if a in self.ignore_age:
                 l = 0
 
-            for i in range(l):
-                y1_data.append(self.genders[g])
+            for i in range(l):  # if l not 0:
+                y_gender.append(self.genders[g])
                 gender_sum[self.genders[g]] += 1
-                Y_data.append(self.ages[a])
+                y_age.append(self.ages[a])
                 age_sum[self.ages[a]] += 1
                 X_data.append(t)
 
@@ -83,23 +83,22 @@ class prepareData:
         print(sum(gender_sum))
         print("\n")
 
-        self.y = np.array(y1_data)
-
-        X_train, X_test, y_train, y_test = train_test_split(np.array(X_data), np.array(y1_data), test_size=0.20)
-        # X_train, X_val, y_train, y_val = train_test_split(np.array(X_train), np.array(y_train), test_size=0.125)
+        self.y = np.array(y_gender)  # change this line and below for other label
+        X_train, X_test, y_train, y_test = train_test_split(np.array(X_data), np.array(y_gender), test_size=0.20)
+        X_train, X_val, y_train, y_val = train_test_split(np.array(X_train), np.array(y_train), test_size=0.15)
 
         print("X_train size -", len(X_train))
         print("X_test size -", len(X_test))
-        # print("X_val size -", len(X_val))
+        print("X_val size -", len(X_val))
         print("y_train size -", len(y_train))
         print("y_test size -", len(y_test))
-        # print("y_val size -", len(y_val))
+        print("y_val size -", len(y_val))
 
         train = TensorDataset(torch.from_numpy(X_train), torch.from_numpy(y_train))
         test = TensorDataset(torch.from_numpy(X_test), torch.from_numpy(y_test))
-        # val = TensorDataset(torch.from_numpy(X_val), torch.from_numpy(y_val))
+        val = TensorDataset(torch.from_numpy(X_val), torch.from_numpy(y_val))
 
         self.train_loader = DataLoader(train, batch_size=50, shuffle=True)  # Combines a dataset and a sampler,
         # and provides an iterable over the given dataset.
         self.test_loader = DataLoader(test, batch_size=50, shuffle=True)  # , drop_last=True)
-        # self.val_loader = DataLoader(val, batch_size=50)  # , drop_last=True)
+        self.val_loader = DataLoader(val, batch_size=50, shuffle=True)  # , drop_last=True)

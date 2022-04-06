@@ -15,7 +15,7 @@ def record(filename):
 
 
 # loading the model
-age_model = torch.load("models\\5.4\\age_CNN_Model-epoch_30_Weights.pth")
+age_model = torch.load("models\\5.4\\age_CNN_Model-epoch_10_Weights.pth")
 gender_model = torch.load("models\\5.4\\gender_CNN_Model-epoch_10_Weights.pth")
 roi_model = gender_model
 roi_model.eval()

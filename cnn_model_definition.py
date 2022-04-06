@@ -76,7 +76,7 @@ class Convolutional_Neural_Network(nn.Module):
         return y
 
     def get_epochs(self):
-        return 10  # 15
+        return 30  # 15
 
     def get_learning_rate(self):
         return 0.0001
