@@ -4,3 +4,6 @@
 venv
 draft.py
 __pycache__
+./models
+./data
+./data_test
