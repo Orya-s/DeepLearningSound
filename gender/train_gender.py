@@ -1,3 +1,4 @@
+from datetime import datetime
 import time
 
 import torch
@@ -13,9 +14,9 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sn
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.metrics import f1_score
 
 from gender.model_definition_gender import ConvNet_roi_orya
-
 
 start = time.time()
 print('Start')
@@ -30,19 +31,29 @@ sum_op = len(data.genders)  # change between models
 # setting model's parameters
 learning_rate = model.get_learning_rate()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+epoch, batch_size = model.get_epochs(), model.get_batch_size()
+
+# preparing txt report file
+results = pd.DataFrame([], columns=['train_loss', 'val_loss', 'test_loss', 'Accuracy of the network',
+                                    'f1_score', 'f1_score_avg'])
+file = open('..\\gender\\' + 'reuslts.txt', 'w')
+file_txt = ['Date and time :  ' + datetime.now().strftime("%d-%m-%Y_%H-%M-%S"),
+            'Learning Rate : ' + str(learning_rate),
+            'Epoch Number : ' + str(epoch)]
+for s in file_txt:
+    file.write(s)
+    file.write('\r----------------------------\r\r')
 
 class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(data.y), y=data.y)
 class_weights = torch.tensor(class_weights, dtype=torch.float)
 
 criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
 
-# criterion = torch.nn.CrossEntropyLoss()
 epoch, batch_size = model.get_epochs(), model.get_batch_size()
-
 # to plot each the loss of each epoch
 results_df = pd.DataFrame([], columns=['train_loss', 'val_loss', 'test_loss'])
 
-for e in range(epoch):
+for e in range(2):
     print("\nepoch - ", e)
 
     model.train()
@@ -100,6 +111,9 @@ for e in range(epoch):
         n_class_correct = [0 for i in range(sum_op)]
         n_class_samples = [0 for i in range(sum_op)]
 
+        y_pred = []
+        y_true = []
+
         for embedding, labels in data.test_loader:
             embedding = embedding.to(device)
 
@@ -124,6 +138,14 @@ for e in range(epoch):
                     n_class_correct[_label] += 1
                 n_class_samples[_label] += 1
 
+            y_pred.extend(predicted.data.cpu().numpy())
+            y_true.extend(labels.data.cpu().numpy())
+
+        # f1 score
+        f1 = f1_score(y_true, y_pred, average=None)
+        f1_avg = f1_score(y_true, y_pred, average='weighted')
+        print("f-score: ", f1, "  f-score avg: ", f1_avg, "\n")
+
         test_loss = np.round(test_loss / count_test, 4)
         print("\ntest loss - ", test_loss)
 
@@ -132,6 +154,7 @@ for e in range(epoch):
         acc = 100.0 * n_correct / n_samples
         print(f'\nAccuracy of the network: {acc} %')
 
+        # calculating accuracy
         for i in range(sum_op):
             if n_class_correct[i] == 0:
                 acc = 0
@@ -139,65 +162,28 @@ for e in range(epoch):
                 acc = 100.0 * n_class_correct[i] / n_class_samples[i]
             print(f'Accuracy of {i + 1}: {acc} %')
 
-        # saving model and creating confusion matrix
-        if e % 1 == 0:  # 5
-            torch.save(model, 'models\\26.4\\roi\\' + "/" + str(e + 1) + "gender_" + model.to_string() + str(
-                e + 1) + "_Weights.pth")
+            # saving model and creating confusion matrix
+            torch.save(model,
+                       'models\\26.4\\roi\\' + str(e + 1) + "gender_" + model.to_string() + str(e + 1) + "_Weights.pth")
 
-            y_pred = []
-            y_true = []
+        # Build confusion matrix
+        classes = data.genders.keys()
+        cf_matrix = confusion_matrix(y_true, y_pred)
+        df_cm = pd.DataFrame(cf_matrix, index=[i for i in classes], columns=[i for i in classes])
+        plt.figure(figsize=(12, 7))
+        sn.heatmap(df_cm, annot=True)
+        plt.savefig(
+            'models\\26.4\\roi\\' + 'confusion_matrix' + "_gender_" + model.to_string() + str(e + 1) + "_Weights.png")
 
-            # iterate over test data
-            for inputs, labels in data.test_loader:
-                output = model(inputs)  # Feed Network
+    results.loc[len(results)] = [train_loss, val_loss, test_loss] + [acc] + [f1, f1_avg]
 
-                output = (torch.max(torch.exp(output), 1)[1]).data.cpu().numpy()
-                y_pred.extend(output)  # Save Prediction
+file.write(results.to_string())
 
-                labels = labels.data.cpu().numpy()
-                y_true.extend(labels)  # Save Truth
-
-            # constant for classes
-            classes = data.genders.keys()
-
-            # Build confusion matrix
-            cf_matrix = confusion_matrix(y_true, y_pred)
-            df_cm = pd.DataFrame(cf_matrix, index=[i for i in classes], columns=[i for i in classes])
-            plt.figure(figsize=(12, 7))
-            sn.heatmap(df_cm, annot=True)
-            plt.savefig(
-                'models\\26.4\\roi\\' + "/" + str(e + 1) + 'confusion_matrix' + "_gender_" + model.to_string() + str(
-                    e + 1) + "_Weights.png")
-
-# confusion matrix
-y_pred = []
-y_true = []
-
-# iterate over test data
-for inputs, labels in data.test_loader:
-    output = model(inputs)  # Feed Network
-
-    output = (torch.max(torch.exp(output), 1)[1]).data.cpu().numpy()
-    y_pred.extend(output)  # Save Prediction
-
-    labels = labels.data.cpu().numpy()
-    y_true.extend(labels)  # Save Truth
-
-# constant for classes
-classes = data.genders.keys()
-
-# Build confusion matrix
-cf_matrix = confusion_matrix(y_true, y_pred)
-df_cm = pd.DataFrame(cf_matrix, index=[i for i in classes], columns=[i for i in classes])
-plt.figure(figsize=(12, 7))
-sn.heatmap(df_cm, annot=True)
-plt.savefig(
-    'models\\26.4\\roi\\' + "/" + 'confusion_matrix' + "_gender_" + model.to_string() + str(e + 1) + "_Weights.png")
 print("End")
 end = time.time()
 print("Total time = ", end - start)
 
-torch.save(model, 'models\\26.4\\roi\\' + "/" + "gender_" + model.to_string() + str(e + 1) + "_Weights.pth")
+torch.save(model, 'models\\26.4\\roi\\' + "gender_" + model.to_string() + str(e + 1) + "_Weights.pth")
 
 plt.figure(figsize=(10, 10))
 plt.plot(results_df['train_loss'], color='gold', label='train')
@@ -207,5 +193,5 @@ plt.plot(results_df['test_loss'], color='blue', label='test')
 plt.ylabel('Loss', fontsize=25)
 plt.xlabel('Epoch', fontsize=25)
 plt.legend()
-plt.savefig('models\\26.4\\roi\\' + '/final_loss_plot.jpeg')
+plt.savefig('models\\26.4\\roi\\' + 'final_loss_plot.jpeg')
 print(results_df)

@@ -17,7 +17,7 @@ class prepareData:
     def __init__(self):
         X = []
         k = 1
-        for file in glob.glob("..\\data\\*.pkl"):
+        for file in glob.glob("..\\data\\all-voice-common.pkl"):
             fname = os.path.basename(file)
             path = "..\\data\\" + fname
             with open(path, 'rb') as f:
